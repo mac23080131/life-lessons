@@ -14,18 +14,22 @@ import { PrismaModule } from '../prisma/prisma.module';
       useFactory: (configService: ConfigService) => {
         const redisUrl = configService.get('REDIS_URL');
         
-        // If REDIS_URL exists (Railway/production), parse it
+        // If REDIS_URL exists (Railway/production), use connection string
         if (redisUrl) {
+          console.log('[BullMQ] Using REDIS_URL from environment');
           return {
-            connection: redisUrl, // BullMQ accepts connection string directly
+            connection: {
+              url: redisUrl, // Explicit url property for BullMQ
+            },
           };
         }
         
         // Fallback to separate host/port for local development
+        console.log('[BullMQ] Using REDIS_HOST/PORT (fallback to localhost)');
         return {
           connection: {
             host: configService.get('REDIS_HOST', 'localhost'),
-            port: configService.get('REDIS_PORT', 6379),
+            port: parseInt(configService.get('REDIS_PORT', '6379'), 10),
           },
         };
       },
