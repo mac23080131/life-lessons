@@ -66,12 +66,14 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
-    const port = Number(process.env.API_PORT || 3001);
-    const host = process.env.HOST || '0.0.0.0';
-    await app.listen(port, host as any);
+  // Railway uses PORT, not API_PORT
+  const port = Number(process.env.PORT || process.env.API_PORT || 3001);
+  const host = process.env.HOST || '0.0.0.0';
+  await app.listen(port, host);
   
-    console.log(`🚀 Life Lessons API running on: http://${host}:${port}`);
-    console.log(`📚 Swagger docs available at: http://${host}:${port}/docs`);
+  console.log(`🚀 Life Lessons API running on: http://${host}:${port}`);
+  console.log(`📚 Swagger docs available at: http://${host}:${port}/docs`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
 bootstrap();

@@ -45,22 +45,25 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 # Copy prisma schema
 COPY --from=builder /app/prisma ./prisma
 
-# Install production dependencies only
+# Install production dependencies only (includes @prisma/client)
 RUN pnpm install --prod --frozen-lockfile
 
-# Generate Prisma Client in production stage (Railway env will be available at runtime)
-# Using a placeholder URL for build, real URL comes from Railway env at runtime
-RUN DATABASE_URL="postgresql://placeholder:placeholder@placeholder:5432/placeholder" pnpm --filter api exec prisma generate
+# Copy Prisma Client generated from builder
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
-# Expose port
+# Set working directory for app
+WORKDIR /app/apps/api
+
+# Expose port (Railway will override with $PORT)
 EXPOSE 3001
 
-# Health check
+# Health check - Railway uses $PORT, defaults to 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+  CMD curl -f http://localhost:${PORT:-3001}/health || exit 1
 
-# Start command (regenerate Prisma Client with real DATABASE_URL, run migrations, then start app)
-CMD ["sh", "-c", "pnpm --filter api exec prisma generate && cd prisma && npx prisma migrate deploy && cd /app/apps/api && node dist/main.js"]
+# Start command - migrate then start (simplified)
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=/app/prisma/schema.prisma && node dist/main.js"]
