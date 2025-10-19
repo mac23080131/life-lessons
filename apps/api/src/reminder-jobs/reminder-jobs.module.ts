@@ -11,12 +11,24 @@ import { PrismaModule } from '../prisma/prisma.module';
     PrismaModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get('REDIS_PORT', 16379),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.get('REDIS_URL');
+        
+        // If REDIS_URL exists (Railway/production), parse it
+        if (redisUrl) {
+          return {
+            connection: redisUrl, // BullMQ accepts connection string directly
+          };
+        }
+        
+        // Fallback to separate host/port for local development
+        return {
+          connection: {
+            host: configService.get('REDIS_HOST', 'localhost'),
+            port: configService.get('REDIS_PORT', 6379),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     BullModule.registerQueue({
