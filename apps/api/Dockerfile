@@ -40,8 +40,9 @@ RUN npm install -g pnpm && apk add --no-cache curl
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 
-# Copy prisma schema
-COPY --from=builder /app/prisma ./prisma
+# Copy prisma schema AND migrations directly from source (not from builder)
+# This ensures migrations are available for `prisma migrate deploy`
+COPY prisma ./prisma
 
 # Install production dependencies only (includes @prisma/client)
 RUN pnpm install --prod --frozen-lockfile
