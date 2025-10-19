@@ -1,0 +1,72 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { AdminUsersService } from '../services/admin-users.service';
+import { AdminGuard } from '../guards/admin.guard';
+
+@ApiTags('Admin - Users')
+@ApiBearerAuth()
+@Controller('admin/users')
+@UseGuards(AdminGuard)
+export class AdminUsersController {
+  constructor(private readonly adminUsersService: AdminUsersService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all users with filters' })
+  async getUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: 'USER' | 'ADMIN',
+    @Query('createdAfter') createdAfter?: string,
+    @Query('createdBefore') createdBefore?: string,
+  ) {
+    const filters: any = {};
+    if (search) filters.search = search;
+    if (role) filters.role = role;
+    if (createdAfter) filters.createdAfter = new Date(createdAfter);
+    if (createdBefore) filters.createdBefore = new Date(createdBefore);
+
+    return this.adminUsersService.getUsers(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+      filters,
+    );
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get user statistics' })
+  async getUserStats() {
+    return this.adminUsersService.getUserStats();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get user by ID' })
+  async getUserById(@Param('id') id: string) {
+    return this.adminUsersService.getUserById(id);
+  }
+
+  @Patch(':id/role')
+  @ApiOperation({ summary: 'Update user role' })
+  async updateUserRole(
+    @Param('id') id: string,
+    @Body('role') role: 'USER' | 'ADMIN',
+  ) {
+    return this.adminUsersService.updateUserRole(id, role);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete user' })
+  async deleteUser(@Param('id') id: string) {
+    return this.adminUsersService.deleteUser(id);
+  }
+}
