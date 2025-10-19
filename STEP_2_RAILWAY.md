@@ -17,11 +17,14 @@ Nếu đang deploy, đợi Railway detect changes và auto-redeploy.
 - [x] Step 2.3: Add PostgreSQL Database
 - [x] Step 2.4: Add Redis Cache
 - [x] Step 2.5: Deploy API from GitHub
-- [ ] Step 2.6: Configure Environment Variables
-- [ ] Step 2.7: Generate Domain
-- [ ] Step 2.8: Test API Health
-- [ ] Step 2.9: Run Database Migrations
-- [ ] Step 2.10: Seed Initial Data
+- [x] Step 2.6: Configure Environment Variables
+- [x] Step 2.7: Generate Domain
+- [x] Step 2.8: Test API Health ✅ API đang chạy!
+- [x] Step 2.9: Run Database Migrations ✅ Đã chạy trong Dockerfile
+- [ ] Step 2.10: Seed Initial Data (Optional - có thể tạo user qua API)
+
+**🎉 API URL**: https://life-lessonsapi-production.up.railway.app
+**📚 Swagger Docs**: https://life-lessonsapi-production.up.railway.app/docs
 
 ---
 
@@ -216,6 +219,7 @@ Sau khi add xong, bạn phải có **9 variables**:
    ```
    https://life-lessons-production-xxxx.up.railway.app
    ```
+   life-lessonsapi-production.up.railway.app
 6. **COPY URL NÀY** → Lưu vào notepad!
 
 ### ⚠️ LƯU URL NÀY:
