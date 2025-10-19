@@ -23,6 +23,8 @@ COPY apps/api ./apps/api
 COPY tsconfig.json ./
 
 # Generate Prisma Client
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
 RUN pnpm --filter api exec prisma generate
 
 # Build the application
