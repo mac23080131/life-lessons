@@ -1,0 +1,505 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== Core Models ==========
+
+model User {
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  passwordHash          String
+  name                  String?
+  avatar                String?                // Avatar URL or base64
+  locale                String?                @default("vi")
+  tz                    String?                @default("Asia/Bangkok")
+  privacyDefault        Privacy                @default(PRIVATE)
+  role                  UserRole               @default(USER)
+  lessons               Lesson[]
+  goals                 Goal[]
+  reminders             Reminder[]
+  memberships           Membership[]
+  reactions             Reaction[]
+  challengeParticipants ChallengeParticipant[]
+  conceptProgress       UserConceptProgress[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum Privacy {
+  PRIVATE
+  GROUP
+  LINK
+  PUBLIC_ANON
+}
+
+enum Domain {
+  INNER
+  HEALTH
+  RELATIONSHIP
+  FINANCE
+}
+
+enum ReminderType {
+  DAILY_EVENING
+  WEEKLY_REVIEW
+  MONTHLY_RETRO
+}
+
+model Lesson {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentRaw      String          @db.Text
+  contentSummary  String?         @db.Text
+  domain          Domain
+  tags            String[]
+  mood            Int             // -2..+2
+  resonance       Int             // 0..3
+  gratitude       String?         @db.Text
+  attachments     String[]
+  visibility      Privacy         @default(PRIVATE)
+  language        String?
+  aiConcepts      String[]
+  aiNextQuestion  String?         @db.Text
+  shareToken      String?         @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  reactions       Reaction[]
+  groupLessons    GroupLesson[]
+  conceptLinks    LessonConcept[]
+
+  @@index([userId])
+  @@index([domain])
+  @@index([createdAt])
+  @@map("lessons")
+}
+
+model Goal {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // "lesson_count"
+  target     Int      @default(10000)
+  current    Int      @default(0)
+  sprintSize Int      @default(100)
+  cadence    String   // daily|5x_week|custom
+  status     String   @default("active") // active|paused|done
+  sprints    Sprint[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@map("goals")
+}
+
+model Sprint {
+  id        String   @id @default(uuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  index     Int
+  startAt   DateTime
+  endAt     DateTime
+  target    Int
+  done      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([goalId])
+  @@map("sprints")
+}
+
+model Reminder {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ReminderType
+  hour      Int          // local hour
+  channel   String       // push|email
+  enabled   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("reminders")
+}
+
+model Group {
+  id           String        @id @default(uuid())
+  name         String
+  ownerId      String
+  inviteCode   String?       @unique
+  members      Membership[]
+  groupLessons GroupLesson[]
+  challenges   Challenge[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("groups")
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // admin|member
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "thank_you"
+  createdAt DateTime @default(now())
+
+  @@unique([lessonId, userId, type])
+  @@index([lessonId])
+  @@map("reactions")
+}
+
+model GroupLesson {
+  id        String   @id @default(uuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  sharedBy  String
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, lessonId])
+  @@index([groupId])
+  @@index([lessonId])
+  @@map("group_lessons")
+}
+
+model Challenge {
+  id            String                @id @default(uuid())
+  name          String
+  description   String                @db.Text
+  type          ChallengeType         @default(COMMUNITY) // COMMUNITY, GROUP, PERSONAL
+  scope         ChallengeScope        @default(LESSON_COUNT) // LESSON_COUNT, STREAK, DOMAIN_BALANCE
+  target        Int                   // e.g., 7 lessons, 21 days streak
+  duration      Int                   // days
+  difficulty    ChallengeDifficulty   @default(MEDIUM)
+  groupId       String?
+  group         Group?                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy     String?
+  isActive      Boolean               @default(true)
+  startDate     DateTime?
+  endDate       DateTime?
+  participants  ChallengeParticipant[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([type])
+  @@index([groupId])
+  @@index([isActive])
+  @@map("challenges")
+}
+
+model ChallengeParticipant {
+  id           String    @id @default(uuid())
+  challengeId  String
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  current      Int       @default(0)
+  streak       Int       @default(0)
+  status       ChallengeStatus @default(ACTIVE)
+  joinedAt     DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@unique([challengeId, userId])
+  @@index([userId])
+  @@index([challengeId])
+  @@map("challenge_participants")
+}
+
+enum ChallengeType {
+  COMMUNITY
+  GROUP
+  PERSONAL
+}
+
+enum ChallengeScope {
+  LESSON_COUNT
+  STREAK
+  DOMAIN_BALANCE
+  DAILY_PRACTICE
+}
+
+enum ChallengeDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  PAUSED
+}
+
+// ========== Concept Knowledge Base Models ==========
+
+model ConceptCategory {
+  id          String    @id @default(uuid())
+  key         String    @unique
+  name        String
+  nameEn      String
+  description String?   @db.Text
+  icon        String?
+  color       String?
+  order       Int       @default(0)
+  concepts    Concept[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("concept_categories")
+}
+
+model Concept {
+  id              String                @id @default(uuid())
+  key             String                @unique
+  slug            String                @unique
+  
+  // Content (bilingual)
+  title           String
+  titleEn         String
+  summary         String                @db.Text
+  summaryEn       String                @db.Text
+  description     String                @db.Text
+  descriptionEn   String                @db.Text
+  
+  // Classification
+  categoryId      String
+  category        ConceptCategory       @relation(fields: [categoryId], references: [id])
+  tags            String[]
+  difficulty      ConceptDifficulty     @default(BEGINNER)
+  
+  // Relations
+  practices       ConceptPractice[]
+  examples        ConceptExample[]
+  questions       ConceptQuestion[]
+  aliases         ConceptAlias[]
+  relationsA      ConceptRelation[]     @relation("ConceptA")
+  relationsB      ConceptRelation[]     @relation("ConceptB")
+  userProgress    UserConceptProgress[]
+  lessonLinks     LessonConcept[]
+  embedding       ConceptEmbedding?
+  
+  // Metadata
+  source          String?
+  sourceUrl       String?
+  imageUrl        String?
+  views           Int                   @default(0)
+  
+  // AI Context
+  aiContext       String                @db.Text
+  keywords        String[]
+  
+  version         Int                   @default(1)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([categoryId])
+  @@index([tags])
+  @@index([keywords])
+  @@index([difficulty])
+  @@map("concepts")
+}
+
+enum ConceptDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model ConceptPractice {
+  id          String   @id @default(uuid())
+  conceptId   String
+  concept     Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  
+  title       String
+  titleEn     String
+  description String   @db.Text
+  descriptionEn String @db.Text
+  steps       String[] // JSON array of steps
+  stepsEn     String[]
+  duration    Int?     // minutes
+  difficulty  ConceptDifficulty @default(BEGINNER)
+  order       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([conceptId])
+  @@map("concept_practices")
+}
+
+model ConceptExample {
+  id          String  @id @default(uuid())
+  conceptId   String
+  concept     Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  
+  title       String
+  titleEn     String
+  text        String  @db.Text
+  textEn      String  @db.Text
+  source      String?
+  order       Int     @default(0)
+  
+  createdAt   DateTime @default(now())
+
+  @@index([conceptId])
+  @@map("concept_examples")
+}
+
+model ConceptQuestion {
+  id          String   @id @default(uuid())
+  conceptId   String
+  concept     Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  
+  question    String   @db.Text
+  questionEn  String   @db.Text
+  type        QuestionType @default(REFLECTIVE)
+  context     String?  @db.Text // When to ask this question
+  contextEn   String?  @db.Text
+  order       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+
+  @@index([conceptId])
+  @@index([type])
+  @@map("concept_questions")
+}
+
+enum QuestionType {
+  REFLECTIVE      // For deep thinking
+  PROVOCATIVE     // To challenge assumptions
+  ACTION_ORIENTED // To plan next steps
+  EXPLORATORY     // To discover patterns
+}
+
+model ConceptAlias {
+  id        String  @id @default(uuid())
+  conceptId String
+  concept   Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  alias     String
+  language  String  @default("vi")
+
+  @@index([conceptId])
+  @@map("concept_aliases")
+}
+
+enum ConceptRelType {
+  BROADER
+  NARROWER
+  RELATED
+  ANTONYM
+}
+
+model ConceptRelation {
+  id   String         @id @default(uuid())
+  aId  String
+  bId  String
+  type ConceptRelType
+  a    Concept        @relation("ConceptA", fields: [aId], references: [id], onDelete: Cascade)
+  b    Concept        @relation("ConceptB", fields: [bId], references: [id], onDelete: Cascade)
+
+  @@unique([aId, bId, type])
+  @@index([aId])
+  @@index([bId])
+  @@map("concept_relations")
+}
+
+// User progress tracking
+model UserConceptProgress {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conceptId       String
+  concept         Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  
+  status          ProgressStatus @default(NOT_STARTED)
+  practicesCount  Int      @default(0) // How many practices tried
+  viewCount       Int      @default(0)
+  lastViewedAt    DateTime?
+  completedAt     DateTime?
+  rating          Int?     // 1-5 stars
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, conceptId])
+  @@index([userId])
+  @@index([conceptId])
+  @@index([status])
+  @@map("user_concept_progress")
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BOOKMARKED
+}
+
+// Link lessons to concepts (AI suggestions)
+model LessonConcept {
+  id          String   @id @default(uuid())
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  conceptId   String
+  concept     Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  
+  relevance   Float    @default(0.5) // 0-1 score from AI
+  source      String   @default("ai") // ai|manual
+  accepted    Boolean  @default(false) // User accepted suggestion
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([lessonId, conceptId])
+  @@index([lessonId])
+  @@index([conceptId])
+  @@index([relevance])
+  @@map("lesson_concepts")
+}
+
+// For pgvector support - will be added via raw SQL migration
+model ConceptEmbedding {
+  id         String   @id @default(uuid())
+  conceptId  String   @unique
+  concept    Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  // embedding vector will be added via SQL migration
+  // embedding Unsupported("vector(1024)")?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("concept_embeddings")
+}
