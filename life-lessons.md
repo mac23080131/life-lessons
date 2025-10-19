@@ -2,6 +2,8 @@
 
 A collection of timeless wisdom and practical advice for living a fulfilling, meaningful, and balanced life.
 
+> **Note:** A "perfect life" doesn't mean a life without challenges or mistakes. It means responding to life's ups and downs with wisdom, grace, and resilience—continuously growing into the best version of yourself.
+
 ## Personal Growth & Self-Discovery
 
 1. **Know Thyself** - Self-awareness is the foundation of personal growth. Take time to understand your values, strengths, weaknesses, and what truly matters to you.
