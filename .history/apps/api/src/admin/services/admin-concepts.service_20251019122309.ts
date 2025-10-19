@@ -117,8 +117,8 @@ export class AdminConceptsService {
         conceptId,
         title: data.title,
         titleEn: data.titleEn,
-        text: data.text || data.description || '',
-        textEn: data.textEn || data.descriptionEn || '',
+        description: data.description,
+        descriptionEn: data.descriptionEn,
       },
     });
   }
