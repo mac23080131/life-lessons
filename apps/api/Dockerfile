@@ -22,10 +22,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY tsconfig.json ./
 
-# Generate Prisma Client
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
-RUN pnpm --filter api exec prisma generate
+# Generate Prisma Client with dummy URL (just for build)
+RUN DATABASE_URL="postgresql://user:pass@localhost:5432/db" pnpm --filter api exec prisma generate
 
 # Build the application
 RUN pnpm --filter api build
@@ -48,12 +46,18 @@ COPY --from=builder /app/prisma ./prisma
 # Install production dependencies only (includes @prisma/client)
 RUN pnpm install --prod --frozen-lockfile
 
-# Copy Prisma Client generated from builder
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Generate Prisma Client for production (will use Railway's DATABASE_URL at build time via ARG)
+ARG DATABASE_URL
+RUN if [ -n "$DATABASE_URL" ]; then \
+      echo "Generating Prisma Client with Railway DATABASE_URL"; \
+      pnpm --filter api exec prisma generate; \
+    else \
+      echo "Generating Prisma Client with placeholder"; \
+      DATABASE_URL="postgresql://user:pass@localhost:5432/db" pnpm --filter api exec prisma generate; \
+    fi
 
 # Set working directory for app
 WORKDIR /app/apps/api
@@ -61,9 +65,9 @@ WORKDIR /app/apps/api
 # Expose port (Railway will override with $PORT)
 EXPOSE 3001
 
-# Health check - Railway uses $PORT, defaults to 3001
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-3001}/health || exit 1
+  CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Start command - migrate then start (simplified)
+# Start command - run migrations then start app
 CMD ["sh", "-c", "npx prisma migrate deploy --schema=/app/prisma/schema.prisma && node dist/main.js"]
