@@ -52,8 +52,8 @@ export class AdminUsersService {
           role: true,
           locale: true,
           isBanned: true,
-          bannedReason: true,
-          bannedAt: true,
+          banReason: true,
+          banUntil: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -218,10 +218,10 @@ export class AdminUsersService {
     }
 
     // Calculate ban expiry
-    let bannedAt: Date | null = null;
+    let banUntil: Date | null = null;
     if (!permanent && durationDays) {
-      bannedAt = new Date();
-      bannedAt.setDate(bannedAt.getDate() + durationDays);
+      banUntil = new Date();
+      banUntil.setDate(banUntil.getDate() + durationDays);
     }
 
     // Ban user
@@ -229,16 +229,16 @@ export class AdminUsersService {
       where: { id: targetUserId },
       data: {
         isBanned: true,
-        bannedReason: reason,
-        bannedAt,
+        banReason: reason,
+        banUntil,
       },
       select: {
         id: true,
         email: true,
         name: true,
         isBanned: true,
-        bannedReason: true,
-        bannedAt: true,
+        banReason: true,
+        banUntil: true,
       },
     });
 
@@ -252,7 +252,7 @@ export class AdminUsersService {
         reason,
         durationDays: durationDays || null,
         permanent,
-        bannedAt: bannedAt?.toISOString() || null,
+        banUntil: banUntil?.toISOString() || null,
         targetEmail: targetUser.email,
         targetRole: targetUser.role,
         adminEmail: admin.email,
@@ -271,7 +271,7 @@ export class AdminUsersService {
     // Get target user
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, email: true, name: true, isBanned: true, bannedReason: true },
+      select: { id: true, email: true, name: true, isBanned: true, banReason: true },
     });
 
     if (!targetUser) {
@@ -293,8 +293,8 @@ export class AdminUsersService {
       where: { id: targetUserId },
       data: {
         isBanned: false,
-        bannedReason: null,
-        bannedAt: null,
+        banReason: null,
+        banUntil: null,
       },
       select: {
         id: true,
@@ -312,7 +312,7 @@ export class AdminUsersService {
       entityId: targetUserId,
       metadata: {
         reason: reason || 'No reason provided',
-        previousbannedReason: targetUser.bannedReason,
+        previousBanReason: targetUser.banReason,
         targetEmail: targetUser.email,
         adminEmail: admin.email,
       },

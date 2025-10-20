@@ -61,18 +61,18 @@ export class AuthService {
     // Check if user is banned
     if (user.isBanned) {
       // Check if ban is temporary and has expired
-      if (user.bannedAt && new Date(user.bannedAt) < new Date()) {
+      if (user.banUntil && new Date(user.banUntil) < new Date()) {
         // Ban expired, unban automatically
         await this.usersService.update(user.id, {
           isBanned: false,
-          bannedReason: null,
-          bannedAt: null,
+          banReason: null,
+          banUntil: null,
         });
       } else {
         // User is still banned
-        const banMessage = user.bannedAt
-          ? `Account banned until ${new Date(user.bannedAt).toLocaleString()}. Reason: ${user.bannedReason || 'No reason provided'}`
-          : `Account permanently banned. Reason: ${user.bannedReason || 'No reason provided'}`;
+        const banMessage = user.banUntil
+          ? `Account banned until ${new Date(user.banUntil).toLocaleString()}. Reason: ${user.banReason || 'No reason provided'}`
+          : `Account permanently banned. Reason: ${user.banReason || 'No reason provided'}`;
         
         throw new UnauthorizedException(banMessage);
       }

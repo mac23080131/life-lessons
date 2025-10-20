@@ -62,77 +62,22 @@ export class AdminUsersController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiOperation({ summary: 'Get user by ID' })
   async getUserById(@Param('id') id: string) {
     return this.adminUsersService.getUserById(id);
   }
 
   @Patch(':id/role')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Change user role (ADMIN only)' })
-  async changeUserRole(
-    @Req() req: any,
-    @Param('id') targetUserId: string,
-    @Body() dto: ChangeRoleDto,
+  @ApiOperation({ summary: 'Update user role' })
+  async updateUserRole(
+    @Param('id') id: string,
+    @Body('role') role: 'USER' | 'ADMIN',
   ) {
-    const adminId = req.user.id;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    
-    return this.adminUsersService.changeUserRole(
-      adminId,
-      targetUserId,
-      dto.newRole,
-      dto.reason,
-      ipAddress,
-    );
-  }
-
-  @Post(':id/ban')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Ban user' })
-  async banUser(
-    @Req() req: any,
-    @Param('id') targetUserId: string,
-    @Body() dto: BanUserDto,
-  ) {
-    const adminId = req.user.id;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    
-    return this.adminUsersService.banUser(
-      adminId,
-      targetUserId,
-      dto.reason,
-      dto.durationDays,
-      dto.permanent,
-      ipAddress,
-    );
-  }
-
-  @Delete(':id/ban')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Unban user' })
-  async unbanUser(
-    @Req() req: any,
-    @Param('id') targetUserId: string,
-    @Body() dto: UnbanUserDto,
-  ) {
-    const adminId = req.user.id;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    
-    return this.adminUsersService.unbanUser(
-      adminId,
-      targetUserId,
-      dto.reason,
-      ipAddress,
-    );
+    return this.adminUsersService.updateUserRole(id, role);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Delete user permanently (ADMIN only)' })
+  @ApiOperation({ summary: 'Delete user' })
   async deleteUser(@Param('id') id: string) {
     return this.adminUsersService.deleteUser(id);
   }
