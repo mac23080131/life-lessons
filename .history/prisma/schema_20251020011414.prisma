@@ -23,10 +23,6 @@ model User {
   tz                    String?                @default("Asia/Bangkok")
   privacyDefault        Privacy                @default(PRIVATE)
   role                  UserRole               @default(USER)
-  isBanned              Boolean                @default(false)
-  bannedAt              DateTime?
-  bannedReason          String?
-  bannedBy              String?               // User ID of admin who banned
   lessons               Lesson[]
   goals                 Goal[]
   reminders             Reminder[]
@@ -34,9 +30,6 @@ model User {
   reactions             Reaction[]
   challengeParticipants ChallengeParticipant[]
   conceptProgress       UserConceptProgress[]
-  auditLogs             AuditLog[]
-  reports               Report[]              @relation("ReportedBy")
-  reportsReceived       Report[]              @relation("ReportedUser")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
@@ -45,7 +38,6 @@ model User {
 
 enum UserRole {
   USER
-  MODERATOR
   ADMIN
 }
 
@@ -510,80 +502,4 @@ model ConceptEmbedding {
   updatedAt  DateTime @updatedAt
 
   @@map("concept_embeddings")
-}
-
-// ========== Admin & Moderation ==========
-
-model AuditLog {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action      String   // e.g., "user.ban", "user.role_change", "lesson.delete", "concept.import"
-  entityType  String?  // e.g., "User", "Lesson", "Concept"
-  entityId    String?  // ID of affected entity
-  metadata    Json?    // Additional context (old/new values, reason, etc.)
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-
-  @@index([userId])
-  @@index([action])
-  @@index([entityType, entityId])
-  @@index([createdAt])
-  @@map("audit_logs")
-}
-
-model Report {
-  id            String       @id @default(uuid())
-  reportedById  String
-  reportedBy    User         @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Cascade)
-  reportedUserId String?
-  reportedUser  User?        @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
-  contentType   String       // "lesson" | "comment" | "user"
-  contentId     String?      // ID of reported content
-  reason        ReportReason
-  description   String?
-  status        ReportStatus @default(PENDING)
-  reviewedBy    String?      // User ID of moderator/admin who reviewed
-  reviewedAt    DateTime?
-  resolution    String?      // Action taken
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-
-  @@index([status])
-  @@index([reportedById])
-  @@index([contentType, contentId])
-  @@map("reports")
-}
-
-enum ReportReason {
-  SPAM
-  HARASSMENT
-  INAPPROPRIATE
-  MISINFORMATION
-  COPYRIGHT
-  OTHER
-}
-
-enum ReportStatus {
-  PENDING
-  REVIEWING
-  RESOLVED
-  DISMISSED
-}
-
-model UserCategory {
-  id          String   @id @default(uuid())
-  userId      String
-  name        String
-  slug        String
-  description String?
-  color       String?  // Hex color for UI
-  icon        String?  // Icon name or emoji
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, slug])
-  @@index([userId])
-  @@map("user_categories")
 }
